@@ -36,9 +36,86 @@ Supposing you have the URL for the CSV file, you can read the data using the cod
 
 ```{r}
 library(readr)
-URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-06T17%3A26%3A29.293Z/acidentes-2000.csv"
-df <- read_delim(URL, delim=";")
-df
+data <- read_delim("/home/gauss/lllemos/lps/tasks/acidentes-2006.csv", delim=";")
+data
 ```
+
+
+Load the necessary packages:
+
+```{r}
+library(dplyr);
+library(magrittr);
+```
+
+# Answer
+
+The data used to develop the work is the urban accidents of 2006 from Porto Alegre. The dataset has specific information about the accidents.
+
+The question choseen to be answered is "Q2. How many vehicles are involved in the accidents?"
+
+
+First, it's selected the variables related to vehicles and the rows of these variables represent the amount of vehicles involved in the accidents.
+
+
+```{r}
+data %>% select(AUTO, TAXI, LOTACAO, ONIBUS_URB, ONIBUS_INT, CAMINHAO, MOTO, CARROCA, BICICLETA, OUTRO)
+
+```
+
+
+Second, the following plot shows during the year of 2006 how many vehicles of each type are involved in accidents.  We can notice that automobiles (variable 'AUTO') are the ones that are most involved in accidents. The x axis represents the classes of vehicles and the y axis the amount of these vehicles involved in accidents during the whole year.
+
+
+```{r}
+library(ggplot2);
+library(reshape2);
+
+new_data <- data %>% summarize(auto=sum(AUTO),  moto=sum(MOTO), taxi=sum(TAXI), lotacao=sum(LOTACAO), onibusur=sum(ONIBUS_URB), onibusint=sum(ONIBUS_INT), caminhao = sum(CAMINHAO), carroca=sum(CARROCA), bicicleta = sum(BICICLETA),outro=sum(OUTRO))
+
+new_data <- melt(new_data[,c('auto', 'moto', 'taxi', 'lotacao', 'onibusur', 'onibusint', 'caminhao', 'carroca', 'bicicleta', 'outro')])
+
+
+ggplot(new_data, aes(x=variable, y=value)) + geom_bar(stat = "identity") + ylim(0,NA) + theme_bw();
+
+  
+```
+
+
+
+Third, it's used the verb mutate to create a new column(variable) with the sum of all types of vehicles involved in the accidents. After that, it's created a bar plot to see which interval has the highest incidence of accidents. Also, the mean and standart deviation are showed.
+
+In the plot the x axis represents the new variable of how many vehicles are involved in each accidents and the y axis represents the amount of vehicles involved.
+
+```{r}
+library(ggplot2);
+
+data %>%  mutate(sum_veh = AUTO+MOTO+LOTACAO+ONIBUS_URB, ONIBUS_INT, CAMINHAO, MOTO, CARROCA, BICICLETA, OUTRO) %>% summarize(mean_sum_veh = mean(sum_veh), std = sd(sum_veh))
+```
+
+```{r}
+library(ggplot2);
+data %>%  mutate(sum_veh = AUTO+MOTO+LOTACAO+ONIBUS_URB, ONIBUS_INT, CAMINHAO, MOTO, CARROCA, BICICLETA, OUTRO) %>% ggplot(aes(sum_veh)) + geom_bar() + ylim(0,NA) + theme_bw();
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

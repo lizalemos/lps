@@ -1,0 +1,233 @@
+---
+title: "Final project"
+author: "Liza Lunardi Lemos"
+date: "December 15, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dataset
+
+This work is the final project of Literate Programming and Statistics. The dataset the is going to be analyzed is US Homicides, which it has homicides reports from 1980 to 2014. 
+This dataset includes the age, race, sex, ethnicity of victims and perpetrators, in addition to the relationship between the victim and perpetrator and weapon used.
+
+## Download the data
+
+
+The dataset is available in: https://www.kaggle.com/jyzaguirre/us-homicide-reports/downloads/database.csv
+
+The dataset must be in the same directory as .Rmd file.
+
+
+```{r}
+library(readr)
+#URL <- "https://www.kaggle.com/jyzaguirre/us-homicide-reports/downloads/database.csv"
+df <- read_delim("database.csv", delim=",")
+df
+
+```
+
+
+Load the necessary packages:
+
+```{r}
+library(dplyr);
+library(magrittr);
+library(ggplot2);
+library(gridExtra);
+
+```
+
+
+# The possible questions are:
+1) If the month influence the homicides
+
+2) What is the sex and race of the victim that is most frequent? or What is the sex and race of the perpetrator that is most frequent?
+
+
+
+
+```{r, echo=FALSE}
+#hist(df$Year, breaks=10, xlab="year")
+# to know the average age depending on sex
+#df %>% group_by(Victim.Sex) %>% summarize(mean_age = mean(Victim.Age));
+
+```
+
+## 1) If the month influence the homicides
+
+First, we have to change the column 'Month' that is a string to integer. Thus, it is possible to plot a histogram. From the histogram, we can notice that there is no relation between the month and the quantity of homicides.
+
+
+```{r}
+a = df$Month
+new_col = df %>%
+ mutate(nr_month = if_else(a == 'January', 1,
+               if_else(a == 'February', 2,
+               if_else(a == 'March', 3,
+               if_else(a == 'April', 4,
+               if_else(a == 'May', 5,
+               if_else(a == 'June', 6,
+               if_else(a == 'July', 7,
+               if_else(a == 'August', 8,
+               if_else(a == 'September', 9,
+               if_else(a == 'October', 10,
+               if_else(a == 'November', 11,
+               if_else(a == 'December', 12,
+                       NA_real_))))))))))))) 
+
+# change the column nr_month to integer
+df = transform(new_col, nr_month = as.integer(new_col$nr_month)) 
+
+
+hist(df$nr_month, xlab = 'Month', main = 'Number of homicides per month',  border="red") 
+axis(side=1, at=seq(0,12, 1))
+
+```
+
+
+## 2.1) What is the sex and race of the victim that is most frequent?
+
+
+First, we plot the number of victims per sex. We can see that most of victims are man.
+
+```{r}
+
+df %>% group_by(Victim.Sex) %>% summarise(number_victins_per_sex = n()) %>% ggplot(aes(x=Victim.Sex, y=number_victins_per_sex)) + geom_bar(stat = "identity", width = 0.2) + ylim(0,NA) + theme_bw() + theme(axis.text.x=element_text(angle=90,hjust=1)) + labs(x = "Victims Sex", y = "Number of victims", title = "Number of victims per sex");
+
+```
+
+
+Second, we plot the number of victims per race. We can notice that the races 'white' and 'black' suffer more homicides.
+
+
+```{r}
+
+df %>% group_by(Victim.Race) %>% summarise(number_victins_per_race = n()) %>% ggplot(aes(x=Victim.Race, y=number_victins_per_race)) + geom_bar(stat = "identity", width = 0.2) + ylim(0,NA) + theme_bw() + theme(axis.text.x=element_text(angle=90,hjust=1)) + labs(x = "Victims Race", y = "Number of victims", title = "Number of victims per race");
+
+```
+
+
+
+After, we group by the data set by columns 'Victim.Sex' and 'Victim.Race'. Thus, we count how many victims it had for each sex and race. 
+
+Since it is difficult to compare too many numbers, we made a bar plot to show which variable has more victims, the variable in question is a group by of sex and race. 
+
+
+```{r}
+
+df %>% group_by(Victim.Sex, Victim.Race) %>% summarise(number_victins_per_sex_race = n())
+
+```
+
+
+```{r}
+
+df %>% group_by(Victim.Sex, Victim.Race) %>% summarize(number_victins_per_sex_race = n()) %>% mutate(vic_sex_race = paste(Victim.Sex, Victim.Race, sep = '+')) %>% ggplot(aes(x=vic_sex_race, y=number_victins_per_sex_race)) + geom_bar(stat = "identity", width = 0.2) + ylim(0,250000) + theme_bw() + theme(axis.text.x=element_text(angle=90,hjust=1)) + labs(x = "Victims Sex + Race", y = "Number of homicides", title = "Number of victims per sex and race");
+
+```
+
+
+As the 'Male + White' and 'Male + Black' bars are very similar and difficult to identify the difference between them, we do a statistical test with different levels of confidence. Thus, we can identify which is the sex and race of the victim who most suffers homicides.
+
+The conclusion is that even with a high level of confidence 'Male+Black' are the highest victims of homicides according to this dataset.
+
+```{r,fig.height=5}
+
+ Calculate_error <-function(Confidence = 0.95 )
+ {
+
+  Phi_alpha= qnorm(1-(1-Confidence)/2) ;
+  
+  sample_size = nrow(df)
+
+  
+df %>%
+    group_by(Victim.Sex, Victim.Race) %>% 
+    summarize(number_victins_per_sex_race = n()) %>% 
+    mutate(vic_sex_race = paste(Victim.Sex, Victim.Race, sep = '+')) %>% 
+    mutate(Freq=number_victins_per_sex_race/sample_size) %>%
+    mutate(Estimated_std_deviation=sqrt(Freq*(1-Freq)),
+         Erreur=Phi_alpha*Estimated_std_deviation/sqrt(sample_size)) %>%
+    filter((Victim.Sex == 'Male')&((Victim.Race == 'White') | Victim.Race == 'Black')) %>%
+    ggplot(aes(x=Freq,xmin=Freq-Erreur,xmax=Freq+Erreur,y=(vic_sex_race))) +
+    geom_point()+
+    geom_errorbarh(height=.3)+
+    xlab("Frequence")+ylab ("Val") +
+    labs(title = paste("Confidence :",Confidence))+
+    theme_bw()
+ }
+
+list(0.9,0.95,0.99,0.999) %>%
+lapply(function(Param_Confidence) {
+  Calculate_error(Confidence = Param_Confidence)
+}) %>%
+grid.arrange(ncol = 1,grobs=.);
+
+```
+
+## 2.2) What is the sex and race of the perpetrator that is most frequent?
+
+We do the same analysis of victims to perpetrator. From the plot, we can see that most of perpetrator that we have information are male, white or black. However, the bar of perpetrator that are male (white or black) is almost the same of unknown sex and race, what is possible, that we do not know who is the perpetrator. 
+
+
+The conclusion is that even with a high level of confidence 'Male+White' is the highest perpetrator of homicides according to this dataset.
+An important point here, the value 'Unknown' for sex and race is high, pretty close to 'Male+Black', their error bars approach each other.
+
+
+```{r}
+
+df %>% group_by(Perpetrator.Sex, Perpetrator.Race) %>% summarise(number_perp_per_sex_race = n())
+
+```
+
+```{r}
+
+df %>% group_by(Perpetrator.Sex, Perpetrator.Race) %>% summarise(number_perp_per_sex_race = n()) %>% mutate(perp_sex_race = paste(Perpetrator.Sex, Perpetrator.Race, sep = '+')) %>% ggplot(aes(x=perp_sex_race, y=number_perp_per_sex_race)) + geom_bar(stat = "identity", width = 0.2) + ylim(0,250000) + theme_bw() + theme(axis.text.x=element_text(angle=90,hjust=1)) + labs(x = "Perpetrator Sex + Race", y = "Number of homicides", title = "Number of perpetrator per sex and race") ;
+
+```
+
+
+
+```{r,fig.height=5}
+
+ Calculate_error <-function(Confidence = 0.95 )
+ {
+
+  Phi_alpha= qnorm(1-(1-Confidence)/2) ;
+  
+  sample_size = nrow(df)
+
+  
+df %>%
+    group_by(Perpetrator.Sex, Perpetrator.Race) %>% 
+    summarize(number_victins_per_sex_race = n()) %>% 
+    mutate(vic_sex_race = paste(Perpetrator.Sex, Perpetrator.Race, sep = '+')) %>% 
+    mutate(Freq=number_victins_per_sex_race/sample_size) %>%
+    mutate(Estimated_std_deviation=sqrt(Freq*(1-Freq)),
+         Erreur=Phi_alpha*Estimated_std_deviation/sqrt(sample_size)) %>%
+    filter((Perpetrator.Sex == 'Male')&((Perpetrator.Race == 'White') | Perpetrator.Race == 'Black') | (Perpetrator.Sex == 'Unknown')&((Perpetrator.Race == 'Unknown'))) %>%
+    ggplot(aes(x=Freq,xmin=Freq-Erreur,xmax=Freq+Erreur,y=(vic_sex_race))) +
+    geom_point()+
+    geom_errorbarh(height=.3)+
+    xlab("Frequence")+ylab ("Val") +
+    labs(title = paste("Confidence :",Confidence))+
+    theme_bw()
+ }
+
+list(0.9,0.95,0.99,0.999) %>%
+lapply(function(Param_Confidence) {
+  Calculate_error(Confidence = Param_Confidence)
+}) %>%
+grid.arrange(ncol = 1,grobs=.);
+
+```
+
+## Conclusion
+
+The mojority of victims are male and black. On the other hand, the mojoriry of perpetrator are male and white. However, we do not have much information about the perpetrator, because the quantity of homicides that the perpetrator is unknown is high.
+
+
